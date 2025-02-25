@@ -85,3 +85,33 @@ def remove_brackets(text):
   
     return text  # Retorna o valor original se não for uma string
 
+# Função para extrair major, minor, patch e a data da última versão
+def extract_versions_and_date(version_string):
+    # Verifica se a string é válida
+    if not version_string or version_string == "-":
+        return {"major": "-", "minor": "-", "patch": "-", "last_version_date": "-"}
+    
+    # Expressão regular para extrair major, minor e patch (ou major e minor)
+    version_pattern = re.compile(r'(\d+)\.(\d+)(?:\.(\d+))?')
+    match = version_pattern.search(version_string)
+    
+    # Extrai a última substring entre parênteses
+    date_pattern = re.compile(r'\(([^)]+)\)')
+    date_matches = date_pattern.findall(version_string)
+    last_version_date = date_matches[-1] if date_matches else "-"
+    
+    # Converte a data para o formato ISO
+    last_version_date_iso = try_convert_to_iso(last_version_date)
+    
+    if match:
+        major, minor, patch = match.groups()
+        # Se o patch não existir, define como "-"
+        patch = patch if patch else "-"
+        return {
+            "major": major,
+            "minor": minor,
+            "patch": patch,
+            "last_version_date": last_version_date_iso
+        }
+    else:
+        return {"major": "-", "minor": "-", "patch": "-", "last_version_date": last_version_date_iso}
