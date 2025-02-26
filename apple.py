@@ -112,8 +112,6 @@ def version_info_ios():
     #
     # print(df.head())
 
-    # print(df["Latest version"].head())  # Veja os primeiros valores
-
     # Convertendo MultiIndex para colunas simples
     df.columns = [col[1] if col[0] == col[1] else ' '.join(col).strip() for col in df.columns]
     # Version Initial release date Latest version Latest release date Device end-of-life                    Unnamed: 7_level_0
