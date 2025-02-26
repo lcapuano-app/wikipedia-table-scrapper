@@ -9,6 +9,7 @@ def version_info_apple():
 
     # macos = version_info_macos()
     ipados = version_info_ipados()
+    ios = version_info_ios()
 
     return ipados
 
@@ -41,7 +42,7 @@ def version_info_macos():
     res = df.to_dict('records')
     res = normalize_keys(res)
 
-    # verificando se a propriedade "version" do útimo registro inclui a strin ".mw-parser-output"
+    # verificando se a propriedade "version" do útimo registro inclui a string ".mw-parser-output"
     # se sim, remove o item do array
     if ".mw-parser-output" in res[-1]["version"]:
         res.pop()
@@ -86,12 +87,63 @@ def version_info_ipados():
     for i in range(len(res)):
         res[i]["last_version_date"] = res[i]["latest_release_date"]
     return res
-    
-    
+
+def version_info_ios():
+
+    url = "https://en.wikipedia.org/wiki/IOS_version_history"
+    tables = pd.read_html(url)
+
+    # No momento, a tabela 0 é a que contém as releases do iOS
+    # Se isso mudar, ajuste o índice da lista
+    if len(tables) < 1:
+        print("Não foi possível encontrar as 1 tabelas necessárias", file=sys.stderr)
+        sys.exit(1)
+
+    df = tables[0]
+    # MultiIndex([(             'Version',              'Version'),
+    #         ('Initial release date', 'Initial release date'),
+    #         (      'Latest version',       'Latest version'),
+    #         ( 'Latest release date',  'Latest release date'),
+    #         (  'Device end-of-life',                 'iPad'),
+    #         (  'Device end-of-life',               'iPhone'),
+    #         (  'Device end-of-life',           'iPod Touch'),
+    #         (  'Unnamed: 7_level_0',   'Unnamed: 7_level_1')],
+    #        )
+    #
+    # print(df.head())
+
+    # print(df["Latest version"].head())  # Veja os primeiros valores
+
+    # Convertendo MultiIndex para colunas simples
+    df.columns = [col[1] if col[0] == col[1] else ' '.join(col).strip() for col in df.columns]
+    # Version Initial release date Latest version Latest release date Device end-of-life                    Unnamed: 7_level_0
+    #    Version Initial release date Latest version Latest release date               iPad  iPhone iPod Touch Unnamed: 7_level_1
+    # print(df.columns)
+
+    # Aplica a função à coluna e expande o resultado em novas colunas
+    df[["major", "minor", "patch", "last_version_date"]] = df["Latest version"].apply(
+        lambda x: pd.Series(extract_versions_and_date(x))
+    )
+
+    df = normalize_data(df, ['Initial release date', 'Latest release date'])
+    res = df.to_dict('records')
+    res = normalize_keys(res)
+
+    # verificando se a propriedade "version" do útimo registro inclui a string "Legend: Obsolete Supported Current Beta"
+    # se sim, remove o item do array
+    if "Legend: Obsolete Supported Current Beta" in res[-1]["version"]:
+        res.pop()    
+
+    # Remove quaisquer propriedades que contenham "unnamed" de todos os registros
+    for i in range(len(res)):
+        res[i] = {key: value for key, value in res[i].items() if "unnamed" not in key}
+
+    ios = res
+    return ios
 
 
 def main():
-    res = version_info_apple()
+    res = version_info_ios()
 
     with open("apple.json", "w", encoding="utf-8") as f:
         json.dump(res, f, indent=4, ensure_ascii=False)
