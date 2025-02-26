@@ -95,7 +95,7 @@ def version_info_ios():
 
     # No momento, a tabela 0 é a que contém as releases do iOS
     # Se isso mudar, ajuste o índice da lista
-    if len(tables) < 1:
+    if len(tables) == 0:
         print("Não foi possível encontrar as 1 tabelas necessárias", file=sys.stderr)
         sys.exit(1)
 
