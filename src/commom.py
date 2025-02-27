@@ -57,10 +57,10 @@ def normalize_data(df, date_columns):
         pandas.DataFrame: The normalized DataFrame.
     """
     # Aplica a função para remover colchetes em todas as colunas
-    df = df.applymap(remove_brackets)
+    df = df.map(remove_brackets)
     
     # Remove espaços em branco no início e no final das strings
-    df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+    df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
     
     
     # Aplica a função de conversão nas colunas de datas
