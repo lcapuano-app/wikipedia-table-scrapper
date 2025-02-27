@@ -1,7 +1,7 @@
 from datetime import datetime
 import sys
 import pandas as pd # type: ignore
-from commom import normalize_keys, normalize_data, extract_versions_and_date
+from src.commom import normalize_keys, normalize_data, extract_versions_and_date
 import json
 import re
 
@@ -13,7 +13,7 @@ def version_info_centOS():
     # Se isso mudar, ajuste o índice da lista
     if len(tables) < 4:
         print("Não foi possível encontrar as 1 tabelas necessárias", file=sys.stderr)
-        sys.exit(1)
+        return []
 
     df = tables[4]
 
@@ -37,21 +37,32 @@ def version_info_centOS():
     res = df.to_dict('records')
     res = normalize_keys(res)
 
+    return parse_res(res)
+
+def parse_res(raws): 
+    res = []
+    for raw in raws:
+        r = {
+            "osName": "centOS",
+            "major": raw["major"],
+            "majorNumber": to_int_or_zero(raw["major"]),
+            "minor": raw["minor"],
+            "minorNumber": to_int_or_zero(raw["minor"]),
+            "patch": raw["patch"],
+            "patchNumber": to_int_or_zero(raw["patch"]),
+            "version": raw["centos_version"],
+            "last_version_date": raw["centos_release_date"],
+            "distributionName": "centOS",
+            "arch": raw["architectures"],
+            "vendor": "centos",
+            "family": "linux",
+        }
+        res.append(r)
+        
     return res
 
-
-def main():
-    res = version_info_centOS()
-
-    with open("centOS.json", "w", encoding="utf-8") as f:
-        json.dump(res, f, indent=4, ensure_ascii=False)
-
-
-    sys.exit(0)
-
-if __name__ == "__main__":
+def to_int_or_zero(value):
     try:
-        main()
-    except Exception as e:
-        print(f"Erro: {e}", file=sys.stderr)
-        sys.exit(1)
+        return int(value)
+    except:
+        return 0

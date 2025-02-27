@@ -1,17 +1,26 @@
 from datetime import datetime
 import sys
 import pandas as pd # type: ignore
-from commom import normalize_keys, normalize_data, extract_versions_and_date
+from src.commom import normalize_keys, normalize_data, extract_versions_and_date
 import json
 import re
 
 def version_info_apple():
 
-    # macos = version_info_macos()
+    macos = version_info_macos()
     ipados = version_info_ipados()
     ios = version_info_ios()
 
-    return ipados
+    # res = {
+    #     "macos": macos,
+    #     "ipados": ipados,
+    #     "ios": ios
+    # }
+    res = []
+    res.extend(macos)
+    res.extend(ipados)
+    res.extend(ios)
+    return res
 
 def version_info_macos():
 
@@ -22,7 +31,7 @@ def version_info_macos():
     # Se isso mudar, ajuste o índice da lista
     if len(tables) < 1:
         print("Não foi possível encontrar as 1 tabelas necessárias", file=sys.stderr)
-        sys.exit(1)
+        return []
 
     df = tables[1]
 
@@ -51,17 +60,17 @@ def version_info_macos():
     for i in range(len(res)):
         res[i] = {key: value for key, value in res[i].items() if "unnamed" not in key}
 
-    return res
+    return parse_macos_res(res)
 
 def version_info_ipados():
     url = "https://en.wikipedia.org/wiki/IPadOS_version_history"
     tables = pd.read_html(url)
-    print(tables[0].head())
+ 
     # No momento, a tabela 0 é a que contém as releases do ipados
     # Se isso mudar, ajuste o índice da lista
     if len(tables) == 0:
         print("Não foi possível encontrar as 1 tabelas necessárias", file=sys.stderr)
-        sys.exit(1)
+        return []
 
     df = tables[0]
     
@@ -86,7 +95,8 @@ def version_info_ipados():
 
     for i in range(len(res)):
         res[i]["last_version_date"] = res[i]["latest_release_date"]
-    return res
+        
+    return parse_ipados_res(res)
 
 def version_info_ios():
 
@@ -97,7 +107,7 @@ def version_info_ios():
     # Se isso mudar, ajuste o índice da lista
     if len(tables) == 0:
         print("Não foi possível encontrar as 1 tabelas necessárias", file=sys.stderr)
-        sys.exit(1)
+        return []
 
     df = tables[0]
     # MultiIndex([(             'Version',              'Version'),
@@ -127,9 +137,9 @@ def version_info_ios():
     res = df.to_dict('records')
     res = normalize_keys(res)
 
-    # verificando se a propriedade "version" do útimo registro inclui a string "Legend: Obsolete Supported Current Beta"
+    # verificando se a propriedade "version" do útimo registro inclui a string "Legend:"
     # se sim, remove o item do array
-    if "Legend: Obsolete Supported Current Beta" in res[-1]["version"]:
+    if "Legend:" in res[-1]["version"]:
         res.pop()    
 
     # Remove quaisquer propriedades que contenham "unnamed" de todos os registros
@@ -137,21 +147,76 @@ def version_info_ios():
         res[i] = {key: value for key, value in res[i].items() if "unnamed" not in key}
 
     ios = res
-    return ios
+    return parse_ios_res(ios)
 
+def parse_macos_res(raws): 
+    res = []
+    for raw in raws:
+        r = {
+            "osName": "macos",
+            "major": raw["major"],
+            "majorNumber": to_int_or_zero(raw["major"]),
+            "minor": raw["minor"],
+            "minorNumber": to_int_or_zero(raw["minor"]),
+            "patch": raw["patch"],
+            "patchNumber": to_int_or_zero(raw["patch"]),
+            "version": raw["version"],
+            "last_version_date": raw["last_version_date"],
+            "arch": raw["processor_support"],
+            "distributionName": raw["release_name"],
+            "vendor": "apple",
+            "family": "macos",
+        }
+        res.append(r)
+        
+    return res
 
-def main():
-    res = version_info_ios()
+def parse_ipados_res(raws): 
+    res = []
+    for raw in raws:
+        r = {
+            "osName": "ipados",
+            "major": raw["major"],
+            "majorNumber": to_int_or_zero(raw["major"]),
+            "minor": raw["minor"],
+            "minorNumber": to_int_or_zero(raw["minor"]),
+            "patch": raw["patch"],
+            "patchNumber": to_int_or_zero(raw["patch"]),
+            "version": raw["latest_version"],
+            "last_version_date": raw["last_version_date"],
+            "arch": "arm",
+            "distributionName": raw["version"],
+            "vendor": "apple",
+            "family": "ipados",
+        }
+        res.append(r)
+        
+    return res
+   
+def parse_ios_res(raws): 
+    res = []
+    for raw in raws:
+        r = {
+            "osName": "ios",
+            "major": raw["major"],
+            "majorNumber": to_int_or_zero(raw["major"]),
+            "minor": raw["minor"],
+            "minorNumber": to_int_or_zero(raw["minor"]),
+            "patch": raw["patch"],
+            "patchNumber": to_int_or_zero(raw["patch"]),
+            "version": raw["latest_version"],
+            "last_version_date": raw["latest_release_date"],
+            "arch": "arm",
+            "distributionName": raw["version"],
+            "vendor": "apple",
+            "family": "ios",
+        }
+        res.append(r)
+        
+    return res
 
-    with open("apple.json", "w", encoding="utf-8") as f:
-        json.dump(res, f, indent=4, ensure_ascii=False)
-
-
-    sys.exit(0)
-
-if __name__ == "__main__":
+def to_int_or_zero(value):
     try:
-        main()
-    except Exception as e:
-        print(f"Erro: {e}", file=sys.stderr)
-        sys.exit(1)
+        return int(value)
+    except:
+        return 0

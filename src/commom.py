@@ -2,6 +2,29 @@ from datetime import datetime
 import re
 import pandas as pd # type: ignore
 
+def normalize_dataframe_columns(df):
+    """
+    Normalize the column names of a pandas DataFrame.
+    This function renames the columns of the given DataFrame by:
+    - Removing any brackets from the column names.
+    - Stripping leading and trailing whitespace.
+    - Converting all characters to lowercase.
+    - Replacing spaces with underscores.
+    Args:
+        df (pandas.DataFrame): The DataFrame whose columns need to be normalized.
+    Returns:
+        pandas.DataFrame: A DataFrame with normalized column names.
+    """
+  
+    df = df.rename(columns=lambda x:
+        remove_parentheses( 
+            remove_brackets(x))
+                .strip()
+                .lower()
+                .replace(" ", "_"))
+    
+    return df
+
 def normalize_keys(data):
     """
         Normalize the keys of dictionaries in a list.
@@ -13,7 +36,10 @@ def normalize_keys(data):
             list of dict: A list of dictionaries with normalized keys.
     """
     for i in range(len(data)):
-        data[i] = {key.lower().replace(" ", "_"): value for key, value in data[i].items()}
+        data[i] = {key.lower()
+                   .replace(" ", "_")
+                   .replace("(", "")
+                   .replace(")", ""): value for key, value in data[i].items()}
         
     return data
 
@@ -43,28 +69,47 @@ def normalize_data(df, date_columns):
       
     return df
 
-# Função para tentar converter uma string para data ISO ou retornar "-"
+
 def try_convert_to_iso(date_str):
     """
-    Converts a date string in the format '%B %d, %Y' to ISO format '%Y-%m-%d'.
-
-    Args:
-        date_str (str): The date string to be converted.
-
-    Returns:
-        str: The date in ISO format if conversion is successful, otherwise "-".
+    Tenta converter 'date_str' nos formatos:
+      - '%B %d, %Y' (ex: 'February 10, 2025')
+      - '%B %Y'     (ex: 'February 2023')
+    Se não conseguir, retorna '-'.
+    Se houver algo em parênteses, tenta parsear ali também.
     """
-    if not isinstance(date_str, str):  # Verifica se o valor é uma string
-        return "-"  # Retorna "-" se não for uma string
-    try:
-        # Tenta converter a string para datetime
-        date = datetime.strptime(date_str, '%B %d, %Y')
-        # Se conseguir, retorna no formato ISO
-        return date.strftime('%Y-%m-%d')
-    except ValueError:
-        # Se não conseguir, retorna "-"
+    if not isinstance(date_str, str):
         return "-"
-    
+
+    date_str = date_str.strip()
+
+    def try_formats(s):
+        # Tenta '%B %d, %Y' e '%B %Y'
+        formats = ["%B %d, %Y", "%B %Y"]
+        for fmt in formats:
+            try:
+                dt = datetime.strptime(s, fmt)
+                return dt.strftime("%Y-%m-%d")
+            except ValueError:
+                pass
+        return None  # não conseguiu
+
+    # 1) Tenta a string como está
+    iso = try_formats(date_str)
+    if iso is not None:
+        return iso
+
+    # 2) Se falhou, mas há algo entre parênteses, tenta esse substring
+    match = re.search(r"\(([^)]+)\)", date_str)
+    if match:
+        inside = match.group(1).strip()
+        iso2 = try_formats(inside)
+        if iso2 is not None:
+            return iso2
+
+    # 3) Se nada funcionou, retorna "-"
+    return "-"
+
 # Função para remover texto entre colchetes
 def remove_brackets(text):
     """
@@ -82,6 +127,25 @@ def remove_brackets(text):
         return "-"
     if isinstance(text, str):  # Verifica se o valor é uma string
         return re.sub(r'\[.*?\]', '', text)
+  
+    return text  # Retorna o valor original se não for uma string
+
+def remove_parentheses(text):
+    """
+    Remove parentheses and their contents from a string.
+    Args:
+        text (str or any): The input text from which parentheses and their contents should be removed.
+                           If the input is NaN, it returns "-".
+                           If the input is not a string, it returns the original value.
+    Returns:
+        str or any: The text with parentheses and their contents removed if the input is a string.
+                    If the input is NaN, it returns "-".
+                    If the input is not a string, it returns the original value.
+    """
+    if pd.isna(text):  # Verifica se o valor é NaN | pd.isna() é equivalente a pd.isnull()
+        return "-"
+    if isinstance(text, str):  # Verifica se o valor é uma string
+        return re.sub(r'\(.*?\)', '', text)
   
     return text  # Retorna o valor original se não for uma string
 
